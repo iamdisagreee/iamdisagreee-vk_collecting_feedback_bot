@@ -1,0 +1,7 @@
+docker_info/
+yyy.py
+test.py
+__pycache__
+.mypy_cache/
+.idea
+venv/
