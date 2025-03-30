@@ -1,8 +1,9 @@
-docker_info/
-yyy.py
 test.py
 __pycache__
 .mypy_cache/
 .idea
 .env
 venv/
+docker_info/nats/data
+docker_info/nui/
+docker_info/redis_data/

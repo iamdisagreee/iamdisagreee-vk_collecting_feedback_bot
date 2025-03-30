@@ -2,10 +2,6 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from lexicon import LEXICON
-
-
-
 # Функция отправки письма
 def send_email(mail_user, mail_password, to_email, header, body):
     SMTP_SERVER = "smtp.yandex.com"

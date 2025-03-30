@@ -2,5 +2,6 @@ from vkbottle import BaseStateGroup
 
 
 class FeedbackState(BaseStateGroup):
-    GOOD = "good"
-    BAD = "bad"
+    WAIT = '1'
+    GOOD = '2'
+    BAD = '3'

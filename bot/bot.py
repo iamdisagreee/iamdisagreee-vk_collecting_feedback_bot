@@ -5,30 +5,42 @@ from random import randint
 from token import NUMBER
 from typing import Union
 from zoneinfo import ZoneInfo
-from annotated_types import Timezone
+
 from taskiq import ScheduledTask
-from vkbottle import BaseStateGroup, ABCRule
 from vkbottle.bot import Bot, Message
 
-from broker import scheduler_storage, worker
+from broker import scheduler_storage
 from config import load_config
 from filters import TimeFilter
 from fsm import FeedbackState
+from keyboard import keyboard
 from lexicon import LEXICON
 from mail import send_email
+import redis.asyncio as redis
+
+from redis_storage import RedisStateDispenser
 
 config = load_config()
+redis_client = redis.Redis(host='localhost', port=6379, db=0)
+dispenser = RedisStateDispenser(redis_client)
 
 bot = Bot(token=config.bot.token)
+bot.state_dispenser = dispenser
 
-@bot.on.message(text=['1', '2', '3', '4', '5'])
+
+@bot.on.message(state=FeedbackState.WAIT)
 async def process_ask_grade_information(message: Message):
     """ В зависимости от введенной оценки устанавливаем состояние"""
-    await message.answer(LEXICON['question_of_opinion'])
     if message.text in ['1', '2', '3']:
         await bot.state_dispenser.set(peer_id=message.peer_id, state=FeedbackState.BAD)
-    else:
+        await message.answer(LEXICON['question_of_opinion'])
+    elif message.text in ['4', '5']:
         await bot.state_dispenser.set(peer_id=message.peer_id, state=FeedbackState.GOOD)
+        await message.answer(LEXICON['question_of_opinion'])
+    else:
+        await message.answer(LEXICON['incorrect_input_rating'], keyboard=keyboard)
+
+
 
 @bot.on.message(state=FeedbackState.GOOD)
 async def process_good_grade(message: Message):
@@ -59,11 +71,13 @@ async def process_sleep_bot(message: Message):
 @bot.on.message()
 async def process_work_with_taskiq(message: Message):
     """ Для каждого нового сообщения устанавливаем уведомление, а для старого сообщения удаляем"""
+    # print(await bot.state_dispenser.delete(peer_id=message.peer_id))
+    # print(await bot.state_dispenser.get(peer_id=message.peer_id))
 
     user_id = message.from_id
 
     await scheduler_storage.startup()
-    print('BEFORE', await scheduler_storage.get_schedules())
+    # print('BEFORE', await scheduler_storage.get_schedules())
 
     list_schedules_id = set()
     for schedule in (await scheduler_storage.get_schedules()):
@@ -78,11 +92,11 @@ async def process_work_with_taskiq(message: Message):
                       args=[],
                       kwargs={'peer_id': message.peer_id},
                       schedule_id=f'service_{user_id}',
-                      time=datetime.now(ZoneInfo('Europe/Moscow')) + timedelta(seconds=5))
+                      time=datetime.now(ZoneInfo('Europe/Moscow')) + timedelta(seconds=3))
     )
 
     # print(f"Новое сообщение: {message.text}")  # Логируем сообщение
-    print('AFTER', await scheduler_storage.get_schedules())
+    # print('AFTER', await scheduler_storage.get_schedules())
     # await message.answer(f"Id = {message.from_id}\n"
                          # f"Name = {user[0].first_name}")
 
