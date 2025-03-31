@@ -1,9 +1,4 @@
-import asyncio
-from datetime import datetime, timedelta, timezone, time
-from pyexpat.errors import messages
-from random import randint
-from token import NUMBER
-from typing import Union
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from taskiq import ScheduledTask
@@ -33,13 +28,15 @@ async def process_ask_grade_information(message: Message):
     """ В зависимости от введенной оценки устанавливаем состояние"""
     if message.text in ['1', '2', '3']:
         await bot.state_dispenser.set(peer_id=message.peer_id, state=FeedbackState.BAD)
-        await message.answer(LEXICON['question_of_opinion'])
-    elif message.text in ['4', '5']:
+        await message.answer(LEXICON['question_of_opinion_1-3'])
+    elif message.text == '4':
         await bot.state_dispenser.set(peer_id=message.peer_id, state=FeedbackState.GOOD)
-        await message.answer(LEXICON['question_of_opinion'])
+        await message.answer(LEXICON['question_of_opinion_4'])
+    elif message.text == '5':
+        await bot.state_dispenser.set(peer_id=message.peer_id, state=FeedbackState.GOOD)
+        await message.answer(LEXICON['question_of_opinion_5'])
     else:
         await message.answer(LEXICON['incorrect_input_rating'], keyboard=keyboard)
-
 
 
 @bot.on.message(state=FeedbackState.GOOD)
@@ -92,7 +89,7 @@ async def process_work_with_taskiq(message: Message):
                       args=[],
                       kwargs={'peer_id': message.peer_id},
                       schedule_id=f'service_{user_id}',
-                      time=datetime.now(ZoneInfo('Europe/Moscow')) + timedelta(seconds=3))
+                      time=datetime.now(ZoneInfo('Europe/Moscow')) + timedelta(days=2))
     )
 
     # print(f"Новое сообщение: {message.text}")  # Логируем сообщение
