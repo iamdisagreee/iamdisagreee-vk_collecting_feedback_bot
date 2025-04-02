@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from taskiq import ScheduledTask
+from taskiq import ScheduledTask, TaskiqScheduler
+from taskiq_nats import PullBasedJetStreamBroker, NATSKeyValueScheduleSource, NATSObjectStoreResultBackend
 from vkbottle.bot import Bot, Message
 
-from broker import scheduler_storage
 from config import load_config
 from filters import TimeFilter
 from fsm import FeedbackState
@@ -21,6 +21,15 @@ dispenser = RedisStateDispenser(redis_client)
 
 bot = Bot(token=config.bot.token)
 bot.state_dispenser = dispenser
+
+worker = PullBasedJetStreamBroker(
+    servers=config.nats.token,
+    queue='taskiq_queue').with_result_backend(
+    result_backend=NATSObjectStoreResultBackend(servers=config.nats.token)
+)
+
+scheduler_storage = NATSKeyValueScheduleSource(servers=config.nats.token)
+scheduler = TaskiqScheduler(worker, sources=[scheduler_storage])
 
 
 @bot.on.message(state=FeedbackState.WAIT)
@@ -64,7 +73,6 @@ async def process_sleep_bot(message: Message):
     await message.answer(LEXICON['sleep_bot'])
     await message.answer(LEXICON['wait_result'])
 
-
 @bot.on.message()
 async def process_work_with_taskiq(message: Message):
     """ Для каждого нового сообщения устанавливаем уведомление, а для старого сообщения удаляем"""
@@ -93,7 +101,7 @@ async def process_work_with_taskiq(message: Message):
     )
 
     # print(f"Новое сообщение: {message.text}")  # Логируем сообщение
-    # print('AFTER', await scheduler_storage.get_schedules())
+    print('AFTER', await scheduler_storage.get_schedules())
     # await message.answer(f"Id = {message.from_id}\n"
                          # f"Name = {user[0].first_name}")
 

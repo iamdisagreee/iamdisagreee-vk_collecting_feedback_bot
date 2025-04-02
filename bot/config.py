@@ -13,12 +13,15 @@ class Mail:
     mail_password: str
     to_email: str
 
+@dataclass
+class NatsConf:
+    token: str
 
 @dataclass
 class Config:
     bot: Bot
     mail: Mail
-
+    nats: NatsConf
 
 def load_config():
     env = Env()
@@ -31,5 +34,8 @@ def load_config():
             mail_user=env('MAIL_USER'),
             mail_password=env('MAIL_PASSWORD'),
             to_email=env('TO_EMAIL')
+        ),
+        nats=NatsConf(
+            token=env('NATS_SERVER')
         )
     )

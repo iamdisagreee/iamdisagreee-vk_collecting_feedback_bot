@@ -1,7 +1,7 @@
 from random import randint
 
-from bot import bot, FeedbackState
-from broker import worker
+from bot import bot, FeedbackState, worker
+# from broker import worker
 from keyboard import keyboard
 from lexicon import LEXICON
 
