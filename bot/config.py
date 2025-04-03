@@ -18,10 +18,15 @@ class NatsConf:
     token: str
 
 @dataclass
+class RedisConf:
+    token: str
+
+@dataclass
 class Config:
     bot: Bot
     mail: Mail
     nats: NatsConf
+    redis: RedisConf
 
 def load_config():
     env = Env()
@@ -37,5 +42,8 @@ def load_config():
         ),
         nats=NatsConf(
             token=env('NATS_SERVER')
-        )
+        ),
+	redis=RedisConf(
+	    token=env('REDIS_SERVER')
+	)
     )

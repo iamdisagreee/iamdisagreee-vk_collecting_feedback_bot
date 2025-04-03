@@ -16,7 +16,7 @@ import redis.asyncio as redis
 from redis_storage import RedisStateDispenser
 
 config = load_config()
-redis_client = redis.Redis(host='localhost', port=6379, db=0)
+redis_client = redis.Redis.from_url(config.redis.token)
 dispenser = RedisStateDispenser(redis_client)
 
 bot = Bot(token=config.bot.token)
@@ -101,7 +101,7 @@ async def process_work_with_taskiq(message: Message):
     )
 
     # print(f"Новое сообщение: {message.text}")  # Логируем сообщение
-    print('AFTER', await scheduler_storage.get_schedules())
+   # print('AFTER', await scheduler_storage.get_schedules())
     # await message.answer(f"Id = {message.from_id}\n"
                          # f"Name = {user[0].first_name}")
 
