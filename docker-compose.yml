@@ -1,9 +1,11 @@
 services:
-  redis-master:
+  redis:
     image: redis:latest
     container_name: redis
     command:
       - redis-server
+      - --replica-read-only no
+      - --requirepass newsletter
     volumes:
       - './docker_info/redis_data:/data'
     ports:
