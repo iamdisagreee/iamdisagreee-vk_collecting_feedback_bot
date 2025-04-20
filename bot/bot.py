@@ -52,6 +52,14 @@ async def process_good_grade(message: Message):
     """ Оценка 4-5. Просим написать свое мнение"""
     await message.answer(LEXICON['rating_point_3-5'])
     await bot.state_dispenser.set(peer_id=message.peer_id, state=FeedbackState.PAUSE)
+    await scheduler_storage.add_schedule(
+        ScheduledTask(task_name='resume_sending_survey',
+                      labels={'user_id': message.from_id},
+                      args=[],
+                      kwargs={'peer_id': message.peer_id},
+                      schedule_id=f'pause_{message.from_id}',
+                      time=datetime.now(ZoneInfo('Europe/Moscow')) + timedelta(days=30))
+    )
 
 @bot.on.message(state=FeedbackState.BAD)
 async def process_bad_grade(message: Message):
@@ -63,7 +71,15 @@ async def process_bad_grade(message: Message):
 
     send_email(config.mail.mail_user, config.mail.mail_password, config.mail.to_email, header, body)
     await message.answer(LEXICON['rating_point_1-2'])
-    await bot.state_dispenser.delete(peer_id=message.peer_id, state=FeedbackState.PAUSE)
+    await bot.state_dispenser.set(peer_id=message.peer_id, state=FeedbackState.PAUSE)
+    await scheduler_storage.add_schedule(
+        ScheduledTask(task_name='resume_sending_survey',
+                      labels={'user_id': message.from_id},
+                      args=[],
+                      kwargs={'peer_id': message.peer_id},
+                      schedule_id=f'pause_{message.from_id}',
+                      time=datetime.now(ZoneInfo('Europe/Moscow')) + timedelta(days=30))
+    )
 
 
 @bot.on.message(TimeFilter(), NoState())
@@ -93,7 +109,7 @@ async def process_work_with_taskiq(message: Message):
                       args=[],
                       kwargs={'peer_id': message.peer_id},
                       schedule_id=f'service_{user_id}',
-                      time=datetime.now(ZoneInfo('Europe/Moscow')) + timedelta(days=30))
+                      time=datetime.now(ZoneInfo('Europe/Moscow')) + timedelta(days=2))
     )
 
 if __name__ == "__main__":
