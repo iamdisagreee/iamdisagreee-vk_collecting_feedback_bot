@@ -5,7 +5,7 @@ services:
     command:
       - redis-server
       - --replica-read-only no
-      - --requirepass newsletter
+      - --requirepass ${REDIS_PASSWORD}
     volumes:
       - './docker_info/redis_data:/data'
     ports:

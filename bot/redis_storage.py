@@ -4,7 +4,7 @@ import redis.asyncio as redis  # Используем асинхронный Red
 from vkbottle import ABCStateDispenser, BaseStateGroup
 from vkbottle.dispatch import StatePeer
 
-from fsm import FeedbackState
+from .fsm import FeedbackState
 
 
 class RedisStateDispenser(ABCStateDispenser):

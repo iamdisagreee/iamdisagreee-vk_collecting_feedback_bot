@@ -1,19 +1,20 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from taskiq import ScheduledTask, TaskiqScheduler
-from taskiq_nats import PullBasedJetStreamBroker, NATSKeyValueScheduleSource, NATSObjectStoreResultBackend
+from taskiq import ScheduledTask
 from vkbottle.bot import Bot, Message
 
 from config import load_config
-from filters import TimeFilter
-from fsm import FeedbackState
-from keyboard import keyboard
-from lexicon import LEXICON
-from mail import send_email
+
+from .broker import scheduler_storage
+from .filters import TimeFilter, NoState
+from .fsm import FeedbackState
+from .lexicon import LEXICON
+from .mail import send_email
+from .redis_storage import RedisStateDispenser
+
 import redis.asyncio as redis
 
-from redis_storage import RedisStateDispenser
 
 config = load_config()
 redis_client = redis.Redis.from_url(config.redis.token)
@@ -21,16 +22,6 @@ dispenser = RedisStateDispenser(redis_client)
 
 bot = Bot(token=config.bot.token)
 bot.state_dispenser = dispenser
-
-worker = PullBasedJetStreamBroker(
-    servers=config.nats.token,
-    queue='taskiq_queue').with_result_backend(
-    result_backend=NATSObjectStoreResultBackend(servers=config.nats.token)
-)
-
-scheduler_storage = NATSKeyValueScheduleSource(servers=config.nats.token)
-scheduler = TaskiqScheduler(worker, sources=[scheduler_storage])
-
 
 @bot.on.message(state=FeedbackState.WAIT)
 async def process_ask_grade_information(message: Message):
@@ -45,14 +36,22 @@ async def process_ask_grade_information(message: Message):
         await bot.state_dispenser.set(peer_id=message.peer_id, state=FeedbackState.GOOD)
         await message.answer(LEXICON['question_of_opinion_5'])
     else:
-        await message.answer(LEXICON['incorrect_input_rating'], keyboard=keyboard)
+        await bot.state_dispenser.set(peer_id=message.peer_id, state=FeedbackState.PAUSE)
+        await scheduler_storage.add_schedule(
+            ScheduledTask(task_name='resume_sending_survey',
+                          labels={'user_id': message.from_id},
+                          args=[],
+                          kwargs={'peer_id': message.peer_id},
+                          schedule_id=f'pause_{message.from_id}',
+                          time=datetime.now(ZoneInfo('Europe/Moscow')) + timedelta(days=30))
+        )
 
 
 @bot.on.message(state=FeedbackState.GOOD)
 async def process_good_grade(message: Message):
     """ Оценка 4-5. Просим написать свое мнение"""
     await message.answer(LEXICON['rating_point_3-5'])
-    await bot.state_dispenser.delete(peer_id=message.peer_id)
+    await bot.state_dispenser.set(peer_id=message.peer_id, state=FeedbackState.PAUSE)
 
 @bot.on.message(state=FeedbackState.BAD)
 async def process_bad_grade(message: Message):
@@ -64,25 +63,22 @@ async def process_bad_grade(message: Message):
 
     send_email(config.mail.mail_user, config.mail.mail_password, config.mail.to_email, header, body)
     await message.answer(LEXICON['rating_point_1-2'])
-    await bot.state_dispenser.delete(peer_id=message.peer_id)
+    await bot.state_dispenser.delete(peer_id=message.peer_id, state=FeedbackState.PAUSE)
 
 
-@bot.on.message(TimeFilter())
+@bot.on.message(TimeFilter(), NoState())
 async def process_sleep_bot(message: Message):
     """ Нерабочее время. Ответ - заглушка"""
     await message.answer(LEXICON['sleep_bot'])
     await message.answer(LEXICON['wait_result'])
 
-@bot.on.message()
+@bot.on.message(NoState())
 async def process_work_with_taskiq(message: Message):
     """ Для каждого нового сообщения устанавливаем уведомление, а для старого сообщения удаляем"""
-    # print(await bot.state_dispenser.delete(peer_id=message.peer_id))
-    # print(await bot.state_dispenser.get(peer_id=message.peer_id))
 
     user_id = message.from_id
 
     await scheduler_storage.startup()
-    # print('BEFORE', await scheduler_storage.get_schedules())
 
     list_schedules_id = set()
     for schedule in (await scheduler_storage.get_schedules()):
@@ -97,13 +93,8 @@ async def process_work_with_taskiq(message: Message):
                       args=[],
                       kwargs={'peer_id': message.peer_id},
                       schedule_id=f'service_{user_id}',
-                      time=datetime.now(ZoneInfo('Europe/Moscow')) + timedelta(days=2))
+                      time=datetime.now(ZoneInfo('Europe/Moscow')) + timedelta(days=30))
     )
-
-    # print(f"Новое сообщение: {message.text}")  # Логируем сообщение
-   # print('AFTER', await scheduler_storage.get_schedules())
-    # await message.answer(f"Id = {message.from_id}\n"
-                         # f"Name = {user[0].first_name}")
 
 if __name__ == "__main__":
     bot.run_forever()
