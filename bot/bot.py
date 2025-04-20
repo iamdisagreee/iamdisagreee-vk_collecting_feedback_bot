@@ -82,7 +82,7 @@ async def process_bad_grade(message: Message):
     )
 
 
-@bot.on.message(TimeFilter(), NoState())
+@bot.on.message(TimeFilter())
 async def process_sleep_bot(message: Message):
     """ Нерабочее время. Ответ - заглушка"""
     await message.answer(LEXICON['sleep_bot'])
