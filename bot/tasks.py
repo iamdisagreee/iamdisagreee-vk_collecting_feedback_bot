@@ -11,7 +11,6 @@ from .lexicon import LEXICON
 async def schedule_sending_questions(peer_id: int):
     """ В таске меняется состояние на FeedbackState.WAIT - ожидаем ввода оценки"""
     await bot.state_dispenser.set(peer_id=peer_id, state=FeedbackState.WAIT)
-    # print(await bot.state_dispenser.get(peer_id=peer_id))
     await bot.api.messages.send(peer_id=peer_id,
                                 message=LEXICON['quality_assessment'],
                                 keyboard=keyboard,
